@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管风琴机械传动放样台</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">🎹</span>
+    <div>
+      <h1>管风琴机械传动放样台</h1>
+      <div class="sub">键盘 → 滚轴板 → 转角器 → 连杆 → 风箱阀板 · 窄柜机械传动</div>
+    </div>
+  </div>
+  <div class="hproject">
+    <input id="projectName" class="pname" spellcheck="false">
+    <button id="btnReset" class="btn" title="恢复种子模型">重置样板</button>
+    <button id="btnSnapshot" class="btn">存快照</button>
+    <button id="btnDrawFront" class="btn primary">正视图</button>
+    <button id="btnDrawSide" class="btn primary">侧视图</button>
+  </div>
+</header>
+
+<main>
+  <!-- 左栏 -->
+  <aside class="left">
+    <section class="panel" id="panelKeys">
+      <h2>音键 / 锁定</h2>
+      <div id="keyList" class="keylist"></div>
+    </section>
+
+    <section class="panel">
+      <h2>构件参数（<span id="selKeyName">K1</span>）</h2>
+      <div class="lockrow">
+        <label><input type="checkbox" id="chkKeyLock"> 锁定此键（搜索不改）</label>
+      </div>
+      <div id="paramForm" class="params"></div>
+      <h3>连接关系</h3>
+      <div id="linkForm" class="links"></div>
+    </section>
+
+    <section class="panel">
+      <h2>柜内固定件</h2>
+      <div id="fixedForm" class="fixeds"></div>
+    </section>
+
+    <section class="panel">
+      <h2>物理参数</h2>
+      <div id="physForm" class="params compact"></div>
+    </section>
+  </aside>
+
+  <!-- 中央放样台 -->
+  <section class="center">
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab active" data-view="plan">俯视放样台</button>
+        <button class="tab" data-view="side">侧视（选中键）</button>
+      </div>
+      <div class="playctl">
+        <button id="btnPlay" class="btn primary">▶ 按键播放</button>
+        <input type="range" id="playSlider" min="0" max="40" value="0">
+        <span class="playval" id="playVal">0%</span>
+      </div>
+    </div>
+    <div id="stageWrap">
+      <svg id="stage" viewBox="0 0 980 560"></svg>
+      <div id="hint" class="hint">拖动方块支点移动构件；点击臂上小圆孔切换孔位；点击连杆端点连接/断开。</div>
+    </div>
+
+    <div class="readouts">
+      <div class="ro" id="roStages">
+        <h3>逐级位移 / 受力</h3>
+        <table><tbody id="stagesTable"></tbody></table>
+      </div>
+      <div class="ro" id="roSummary">
+        <h3>整机指标</h3>
+        <div id="summaryBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 右栏 -->
+  <aside class="right">
+    <section class="panel">
+      <h2>违规检查</h2>
+      <div id="violBox" class="viols"></div>
+    </section>
+    <section class="panel">
+      <h2>布局搜索</h2>
+      <p class="tip">在孔位/臂长/滚轴位置范围内搜索，按违规数、最大触键力、
+        键间手感差、改孔量排序。锁定件不参与。</p>
+      <div class="searchctl">
+        <label>采样数 <input type="number" id="searchBudget" value="500" min="80" max="3000" step="20"></label>
+        <button id="btnSearch" class="btn primary">开始搜索</button>
+      </div>
+      <div id="searchResults" class="results"></div>
+    </section>
+    <section class="panel">
+      <h2>快照</h2>
+      <div id="snapList" class="snaps"></div>
+    </section>
+  </aside>
+</main>
+
+<div id="drawModal" class="modal hidden">
+  <div class="modalbox wide">
+    <div class="modalhead">
+      <h3 id="drawTitle">装配图</h3>
+      <div>
+        <button id="btnDrawDownload" class="btn">下载 SVG</button>
+        <button id="btnDrawClose" class="btn">关闭</button>
+      </div>
+    </div>
+    <div id="drawBody" class="drawbody"></div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
