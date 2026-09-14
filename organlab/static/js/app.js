@@ -4,15 +4,28 @@
 const SVGNS = "http://www.w3.org/2000/svg";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+// SVG 元素用 SVG 命名空间；普通 HTML 元素必须用 createElement，
+// 否则浏览器把 <div>/<select>/<input> 当成 SVG 元素，既不显示也无法交互。
 const el = (name, attrs = {}, parent) => {
   const n = document.createElementNS(SVGNS, name);
+  return setAttrs(n, attrs, parent);
+};
+const h = (name, attrs = {}, parent) => {
+  const n = document.createElement(name);
+  return setAttrs(n, attrs, parent);
+};
+function setAttrs(n, attrs, parent) {
   for (const [k, v] of Object.entries(attrs)) {
+    if (v === null || v === undefined || v === false) continue;
     if (k === "text") n.textContent = v;
-    else n.setAttribute(k, v);
+    else if (k === "html") n.innerHTML = v;
+    else if (k === "class") n.setAttribute("class", v);
+    else if (k === "checked" || k === "disabled") { if (v) n.setAttribute(k, ""); }
+    else n.setAttribute(k, v === true ? "" : v);
   }
   if (parent && parent.appendChild) parent.appendChild(n);
   return n;
-};
+}
 
 const state = {
   projectId: null,
@@ -79,7 +92,7 @@ function renderKeyList() {
       m.deadAt !== null || m.fFrontMax > state.model.globals.physics.effKeyFrontMax;
     const warn = state.analysis.violations.some(
       (v) => v.severity === "warn" && v.keys.includes(k.id));
-    const d = el("div", {
+    const d = h("div", {
       class: `keychip ${state.selected === k.id ? "sel" : ""} ` +
         `${k.locked ? "locked" : bad ? "bad" : warn ? "warn" : ""}`,
     }, box);
@@ -122,33 +135,29 @@ function renderPanels() {
   const pf = $("#paramForm");
   pf.innerHTML = "";
   PARAM_DEFS.forEach(([field, label, catField]) => {
-    const row = el("div", { class: "row" }, pf);
-    el("label", { text: label }, row);
-    const sel = document.createElement("select");
+    const row = h("div", { class: "row" }, pf);
+    h("label", { text: label }, row);
+    const sel = h("select", { disabled: key.locked || null }, row);
     sel.innerHTML = catalogOptions(catField, g[field]);
-    if (key.locked) sel.disabled = true;
-    pf.appendChild(row).appendChild(sel);
     sel.onchange = () => edit(i, field, parseFloat(sel.value))
       .then(applyAnalysis).catch(showErr);
   });
   // 阀列（改列）
   const sp = state.model.globals.keySpacing;
   const pitch = Math.round((g.squareX - 12) / sp) - i;
-  const r1 = el("div", { class: "row" }, pf);
-  el("label", { text: "服务阀列偏移" }, r1);
-  const ps = el("select", {}, r1);
+  const r1 = h("div", { class: "row" }, pf);
+  h("label", { text: "服务阀列偏移" }, r1);
+  const ps = h("select", { disabled: key.locked || null }, r1);
   ps.innerHTML = state.model.catalog.squareXPitch.map((p) =>
     `<option value="${p}" ${p === pitch ? "selected" : ""}>${p === 0 ? "本位" : (p > 0 ? "+" + p : p) + " 列"}</option>`
   ).join("");
-  ps.disabled = !!key.locked;
   ps.onchange = () => edit(i, "squareXPitch", parseInt(ps.value))
     .then(applyAnalysis).catch(showErr);
   // 空程（阀间隙）
-  const r2 = el("div", { class: "row" }, pf);
-  el("label", { text: "阀拉索空程 mm" }, r2);
-  const gap = el("input", { type: "number", step: "0.1", min: "0", max: "4",
-    value: g.valveGap ?? 1 }, r2);
-  if (key.locked) gap.disabled = true;
+  const r2 = h("div", { class: "row" }, pf);
+  h("label", { text: "阀拉索空程 mm" }, r2);
+  const gap = h("input", { type: "number", step: "0.1", min: "0", max: "4",
+    value: g.valveGap ?? 1, disabled: key.locked || null }, r2);
   gap.onchange = () => edit(i, "valveGap", parseFloat(gap.value))
     .then(applyAnalysis).catch(showErr);
 
@@ -158,10 +167,9 @@ function renderPanels() {
   [["sticker_to_hornIn", "立木—输入角", "hornIn"],
    ["hornOut_to_squareIn", "输出角—转角器", "squareIn"],
    ["squareOut_to_pallet", "输出臂—阀板", "pallet"]].forEach(([j, label, target]) => {
-    const lab = el("label", {}, lf);
-    const cb = el("input", { type: "checkbox" }, lab);
+    const lab = h("label", {}, lf);
+    const cb = h("input", { type: "checkbox", disabled: key.locked || null }, lab);
     cb.checked = g.links[j] === target;
-    cb.disabled = !!key.locked;
     lab.appendChild(document.createTextNode(" " + label));
     cb.onchange = () => edit(i, "links", { joint: j, target: cb.checked ? target : "" })
       .then(applyAnalysis).catch(showErr);
@@ -173,8 +181,8 @@ function renderPanels() {
   [["rollerBoard", "滚轴板（锁定后搜索不动）"],
    ["windchest", "风箱/阀板（阀列固定）"],
    ["keyFrame", "键盘框架"]].forEach(([k, label]) => {
-    const lab = el("label", {}, ff);
-    const cb = el("input", { type: "checkbox" }, lab);
+    const lab = h("label", {}, ff);
+    const cb = h("input", { type: "checkbox" }, lab);
     cb.checked = !!state.model.fixed[k];
     lab.appendChild(document.createTextNode(" " + label));
     cb.onchange = () => api("/api/fixed", "POST", { fixed: { [k]: cb.checked } })
@@ -192,9 +200,9 @@ function renderPanels() {
    ["jointEff", "铰点效率", 0.01],
    ["effKeyFrontMax", "触键力上限 N", 0.5],
    ["valveOpenTarget", "目标阀开 mm", 0.1]].forEach(([k, label, step]) => {
-    const row = el("div", { class: "row" }, phf);
-    el("label", { text: label }, row);
-    const inp = el("input", { type: "number", step, value: ph[k] }, row);
+    const row = h("div", { class: "row" }, phf);
+    h("label", { text: label }, row);
+    const inp = h("input", { type: "number", step, value: ph[k] }, row);
     inp.onchange = () => {
       ph[k] = parseFloat(inp.value);
       api("/api/model", "PUT", { globals: state.model.globals, selected: i })
@@ -482,13 +490,16 @@ function setPlayFrame(t) {
   state.play.t = t;
   const i = state.selected;
   api(`/api/play/${i}?t=${t.toFixed(3)}`).then((fr) => {
+    // /api/play 返回 stages/nodesZ；视图与读数统一用 s/z 别名。
+    fr.s = fr.stages;
+    fr.z = fr.nodesZ;
     state.play.frame = fr;
     if (state.view === "plan") renderPlan();
     else renderSide();
     renderStages(fr);
     $("#playSlider").value = Math.round(t * 40);
     $("#playVal").textContent = Math.round(t * 100) + "%";
-  });
+  }).catch(showErr);
 }
 
 /* ------------------------------------------------------------------ 侧视图 */
